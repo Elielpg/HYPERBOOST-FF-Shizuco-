@@ -1,0 +1,1 @@
+# HyperBoostFF\nProjeto pronto para GitHub Actions.\n
