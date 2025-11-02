@@ -1,17 +1,10 @@
-name: Autogenerate Gradle Wrapper & Fix Missing Files
+name: Fix Gradle Wrapper and Build APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: write
 
 jobs:
-  prepare-and-generate:
-    name: Gerar wrapper e criar arquivos faltantes
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,71 +17,40 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Instalar Gradle CLI
+      - name: Install Gradle CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y gradle
 
-      - name: Garantir estrutura básica
+      - name: Regenerate Gradle Wrapper
         run: |
+          echo "🧩 Criando Gradle Wrapper válido..."
+          echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
+          gradle wrapper --no-daemon --warning-mode=all
           mkdir -p gradle/wrapper
-          mkdir -p app/src/main/java
-          mkdir -p app/src/main/res
+          cp -v gradle/wrapper/* gradle/wrapper/
+          chmod +x gradlew
+          echo "✅ Wrapper regenerado com sucesso!"
+          ls -l gradle/wrapper
 
-      - name: Criar gradle-wrapper.properties se faltar
-        run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
-            cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
-          fi
-
-      - name: Gerar gradle-wrapper.jar se faltar
-        run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
-            gradle wrapper --no-daemon
-            cp -v gradle/wrapper/* gradle/wrapper/ || true
-            rm -f build.gradle
-            echo "Gradle Wrapper regenerado com sucesso!"
-          fi
-
-      - name: Criar script gradlew se faltar
-        run: |
-          if [ ! -f gradlew ]; then
-            cat > gradlew <<'EOF'
-#!/usr/bin/env sh
-APP_BASE_NAME=`basename "$0"`
-PRG="$0"
-while [ -h "$PRG" ]; do
-  ls=`ls -ld "$PRG"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '/.*' > /dev/null; then
-    PRG="$link"
-  else
-    PRG=`dirname "$PRG"`"/$link"
-  fi
-done
-SAVED="`pwd`"
-cd "`dirname \"$PRG\"`/" >/dev/null
-APP_HOME="`pwd -P`"
-cd "$SAVED" >/dev/null
-CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
-exec "$JAVA_HOME/bin/java" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
-EOF
-            chmod +x gradlew
-          fi
-
-      - name: Confirmar wrapper válido
-        run: java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --version || echo "Wrapper verificado"
-
-      - name: Commit e push (se houver mudanças)
+      - name: Commit Gradle Wrapper (if missing)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --staged --quiet || (git commit -m "Auto: regenerar Gradle Wrapper válido" && git push)
+          git add gradlew gradlew.bat gradle/wrapper/
+          git diff --staged --quiet || (git commit -m "Auto: regenerate valid Gradle Wrapper" && git push)
+
+      - name: Grant execute permission for Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Verify Wrapper
+        run: java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --version
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/*.apk
