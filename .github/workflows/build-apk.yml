@@ -27,7 +27,6 @@ jobs:
           mkdir -p app/src/main/java
           mkdir -p app/src/main/res
           mkdir -p gradle/wrapper
-
           echo "✅ Estrutura básica criada"
 
       - name: Create build.gradle (root)
