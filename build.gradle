@@ -1,5 +1,3 @@
-// build.gradle (raiz do projeto)
-
 buildscript {
     repositories {
         google()
