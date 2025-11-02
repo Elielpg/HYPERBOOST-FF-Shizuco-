@@ -22,9 +22,9 @@ jobs:
 
       - name: Gerar gradle-wrapper.jar
         run: |
-          gradle wrapper --gradle-version 8.2
+          gradle wrapper --gradle-version 8.2 --warning-mode=all --continue
 
-      - name: Enviar alterações para o repositório
+      - name: Confirmar alterações
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
