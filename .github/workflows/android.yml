@@ -1,4 +1,4 @@
-name: Android CI
+name: Android Build
 
 on:
   push:
@@ -25,8 +25,13 @@ jobs:
         api-level: 33
         build-tools: 33.0.2
 
-    - name: Grant execute permission for Gradle Wrapper
-      run: chmod +x gradlew
+    - name: Install Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Generate Gradle Wrapper
+      run: |
+        gradle wrapper
+        chmod +x gradlew
 
     - name: Build Release APK
       run: ./gradlew assembleRelease
