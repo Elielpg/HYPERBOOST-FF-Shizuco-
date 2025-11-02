@@ -29,87 +29,54 @@ jobs:
           mkdir -p gradle/wrapper
           echo "✅ Estrutura básica criada"
 
-      - name: Create build.gradle (root)
+      - name: Create root build.gradle
         run: |
-          cat > build.gradle <<'EOF'
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.0'
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-EOF
+          echo "buildscript {" > build.gradle
+          echo "    repositories { google(); mavenCentral() }" >> build.gradle
+          echo "    dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }" >> build.gradle
+          echo "}" >> build.gradle
+          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
 
       - name: Create settings.gradle
         run: |
-          cat > settings.gradle <<'EOF'
-rootProject.name = "HYPERBOOST-FF-Shizuco"
-include ':app'
-EOF
+          echo "rootProject.name = 'HYPERBOOST-FF-Shizuco'" > settings.gradle
+          echo "include ':app'" >> settings.gradle
 
       - name: Create app/build.gradle
         run: |
-          cat > app/build.gradle <<'EOF'
-plugins {
-    id 'com.android.application'
-}
-
-android {
-    namespace "com.leozito.hyperboostff"
-    compileSdk 33
-
-    defaultConfig {
-        applicationId "com.leozito.hyperboostff"
-        minSdk 21
-        targetSdk 33
-        versionCode 1
-        versionName "1.0"
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-}
-
-dependencies {
-    implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.11.0'
-}
-EOF
+          mkdir -p app
+          echo "plugins { id 'com.android.application' }" > app/build.gradle
+          echo "android {" >> app/build.gradle
+          echo "    namespace 'com.leozito.hyperboostff'" >> app/build.gradle
+          echo "    compileSdk 33" >> app/build.gradle
+          echo "    defaultConfig {" >> app/build.gradle
+          echo "        applicationId 'com.leozito.hyperboostff'" >> app/build.gradle
+          echo "        minSdk 21" >> app/build.gradle
+          echo "        targetSdk 33" >> app/build.gradle
+          echo "        versionCode 1" >> app/build.gradle
+          echo "        versionName '1.0'" >> app/build.gradle
+          echo "    }" >> app/build.gradle
+          echo "    buildTypes { release { minifyEnabled false } }" >> app/build.gradle
+          echo "}" >> app/build.gradle
+          echo "dependencies {" >> app/build.gradle
+          echo "    implementation 'androidx.core:core-ktx:1.12.0'" >> app/build.gradle
+          echo "    implementation 'androidx.appcompat:appcompat:1.7.0'" >> app/build.gradle
+          echo "    implementation 'com.google.android.material:material:1.11.0'" >> app/build.gradle
+          echo "}" >> app/build.gradle
 
       - name: Create AndroidManifest.xml
         run: |
           mkdir -p app/src/main
-          cat > app/src/main/AndroidManifest.xml <<'EOF'
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.leozito.hyperboostff">
-    <application
-        android:allowBackup="true"
-        android:label="HyperBoost FF"
-        android:supportsRtl="true">
-        <activity android:name=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-EOF
+          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.leozito.hyperboostff">' > app/src/main/AndroidManifest.xml
+          echo '    <application android:label="HyperBoost FF" android:allowBackup="true" android:supportsRtl="true">' >> app/src/main/AndroidManifest.xml
+          echo '        <activity android:name=".MainActivity">' >> app/src/main/AndroidManifest.xml
+          echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
+          echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
+          echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
+          echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
+          echo '        </activity>' >> app/src/main/AndroidManifest.xml
+          echo '    </application>' >> app/src/main/AndroidManifest.xml
+          echo '</manifest>' >> app/src/main/AndroidManifest.xml
 
       - name: Regenerate Gradle Wrapper
         run: |
