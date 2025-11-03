@@ -1,4 +1,4 @@
-name: Build Android APK (Final Fix SDK 34)
+name: Build Android APK (Full Fix)
 
 on:
   workflow_dispatch:
@@ -17,101 +17,38 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install Android SDK 34
+      - name: Recreate Gradle Wrapper (if missing)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk
-          sudo mv android-sdk /usr/local/android-sdk
-          yes | /usr/local/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/local/android-sdk "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          echo "🧩 Verificando Gradle Wrapper..."
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "⚠️ Gradle Wrapper ausente. Recriando..."
+            mkdir -p gradle/wrapper
+            cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+            cat > gradlew <<'EOF'
+#!/usr/bin/env sh
+DIR="$(cd "$(dirname "$0")" && pwd)"
+java -Xmx64m -cp "$DIR/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
+EOF
+            chmod +x gradlew
+            echo "✅ Criado gradlew"
+          else
+            echo "✅ Gradle Wrapper já existe."
+          fi
 
-      - name: Create project structure
-        run: |
-          mkdir -p app/src/main/java
-          mkdir -p app/src/main/res
-          mkdir -p gradle/wrapper
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
 
-      - name: Create root build.gradle and settings.gradle
-        run: |
-          echo "buildscript {" > build.gradle
-          echo "    repositories { google(); mavenCentral() }" >> build.gradle
-          echo "    dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }" >> build.gradle
-          echo "}" >> build.gradle
-          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
-          echo "rootProject.name = 'HYPERBOOST-FF-Shizuco'" > settings.gradle
-          echo "include ':app'" >> settings.gradle
-
-      - name: Create app/build.gradle
-        run: |
-          echo "plugins { id 'com.android.application' }" > app/build.gradle
-          echo "android {" >> app/build.gradle
-          echo "    namespace 'com.leozito.hyperboostff'" >> app/build.gradle
-          echo "    compileSdk 34" >> app/build.gradle
-          echo "    signingConfigs {" >> app/build.gradle
-          echo "        release {" >> app/build.gradle
-          echo "            storeFile file('release.keystore')" >> app/build.gradle
-          echo "            storePassword '123456'" >> app/build.gradle
-          echo "            keyAlias 'releaseKey'" >> app/build.gradle
-          echo "            keyPassword '123456'" >> app/build.gradle
-          echo "        }" >> app/build.gradle
-          echo "    }" >> app/build.gradle
-          echo "    defaultConfig {" >> app/build.gradle
-          echo "        applicationId 'com.leozito.hyperboostff'" >> app/build.gradle
-          echo "        minSdk 21" >> app/build.gradle
-          echo "        targetSdk 34" >> app/build.gradle
-          echo "        versionCode 1" >> app/build.gradle
-          echo "        versionName '1.0'" >> app/build.gradle
-          echo "    }" >> app/build.gradle
-          echo "    buildTypes {" >> app/build.gradle
-          echo "        release {" >> app/build.gradle
-          echo "            signingConfig signingConfigs.release" >> app/build.gradle
-          echo "            minifyEnabled false" >> app/build.gradle
-          echo "            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'" >> app/build.gradle
-          echo "        }" >> app/build.gradle
-          echo "    }" >> app/build.gradle
-          echo "    compileOptions {" >> app/build.gradle
-          echo "        sourceCompatibility JavaVersion.VERSION_17" >> app/build.gradle
-          echo "        targetCompatibility JavaVersion.VERSION_17" >> app/build.gradle
-          echo "    }" >> app/build.gradle
-          echo "}" >> app/build.gradle
-          echo "dependencies {" >> app/build.gradle
-          echo "    implementation 'androidx.core:core-ktx:1.13.1'" >> app/build.gradle
-          echo "    implementation 'androidx.appcompat:appcompat:1.7.0'" >> app/build.gradle
-          echo "    implementation 'com.google.android.material:material:1.12.0'" >> app/build.gradle
-          echo "}" >> app/build.gradle
-
-      - name: Create AndroidManifest.xml
-        run: |
-          mkdir -p app/src/main
-          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.leozito.hyperboostff">' > app/src/main/AndroidManifest.xml
-          echo '    <application android:label="HyperBoost FF" android:allowBackup="true" android:supportsRtl="true">' >> app/src/main/AndroidManifest.xml
-          echo '        <activity android:name=".MainActivity">' >> app/src/main/AndroidManifest.xml
-          echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
-          echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
-          echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '        </activity>' >> app/src/main/AndroidManifest.xml
-          echo '    </application>' >> app/src/main/AndroidManifest.xml
-          echo '</manifest>' >> app/src/main/AndroidManifest.xml
-
-      - name: Generate Keystore
-        run: |
-          keytool -genkeypair -v -keystore release.keystore -keyalg RSA -keysize 2048 -validity 10000 -alias releaseKey -storepass 123456 -keypass 123456 -dname "CN=HyperBoostFF,O=Eliel,C=BR"
-
-      - name: Generate Gradle Wrapper
-        run: |
-          gradle wrapper --gradle-version 8.7 --no-daemon --warning-mode all
-          chmod +x gradlew
-
-      - name: Verify Gradle Wrapper
-        run: java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --version
-
-      - name: Build Release APK
+      - name: Build release APK
         run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: HyperBoostFF-APK
-          path: app/build/outputs/apk/release/*.apk
+          name: HyperBoost-FF-Release
+          path: app/build/outputs/apk/release/app-release.apk
