@@ -50,6 +50,15 @@ jobs:
           echo "    namespace 'com.leozito.hyperboostff'" >> app/build.gradle
           echo "    compileSdk 33" >> app/build.gradle
           echo "" >> app/build.gradle
+          echo "    signingConfigs {" >> app/build.gradle
+          echo "        release {" >> app/build.gradle
+          echo "            storeFile file('release.keystore')" >> app/build.gradle
+          echo "            storePassword '123456'" >> app/build.gradle
+          echo "            keyAlias 'releaseKey'" >> app/build.gradle
+          echo "            keyPassword '123456'" >> app/build.gradle
+          echo "        }" >> app/build.gradle
+          echo "    }" >> app/build.gradle
+          echo "" >> app/build.gradle
           echo "    defaultConfig {" >> app/build.gradle
           echo "        applicationId 'com.leozito.hyperboostff'" >> app/build.gradle
           echo "        minSdk 21" >> app/build.gradle
@@ -65,18 +74,9 @@ jobs:
           echo "" >> app/build.gradle
           echo "    buildTypes {" >> app/build.gradle
           echo "        release {" >> app/build.gradle
-          echo "            minifyEnabled false" >> app/build.gradle
           echo "            signingConfig signingConfigs.release" >> app/build.gradle
+          echo "            minifyEnabled false" >> app/build.gradle
           echo "            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'" >> app/build.gradle
-          echo "        }" >> app/build.gradle
-          echo "    }" >> app/build.gradle
-          echo "" >> app/build.gradle
-          echo "    signingConfigs {" >> app/build.gradle
-          echo "        release {" >> app/build.gradle
-          echo "            storeFile file('release.keystore')" >> app/build.gradle
-          echo "            storePassword '123456'" >> app/build.gradle
-          echo "            keyAlias 'releaseKey'" >> app/build.gradle
-          echo "            keyPassword '123456'" >> app/build.gradle
           echo "        }" >> app/build.gradle
           echo "    }" >> app/build.gradle
           echo "}" >> app/build.gradle
