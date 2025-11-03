@@ -1,4 +1,4 @@
-name: Build Android APK (Stable Final Fix)
+name: Build Android APK (Final Fix SDK 34)
 
 on:
   workflow_dispatch:
@@ -17,14 +17,14 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install Android SDK 33
+      - name: Install Android SDK 34
         run: |
           sudo apt-get update
           sudo apt-get install -y wget unzip
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk
           sudo mv android-sdk /usr/local/android-sdk
-          yes | /usr/local/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/local/android-sdk "platforms;android-33" "build-tools;33.0.2" "platform-tools"
+          yes | /usr/local/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/local/android-sdk "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
       - name: Create project structure
         run: |
@@ -47,7 +47,7 @@ jobs:
           echo "plugins { id 'com.android.application' }" > app/build.gradle
           echo "android {" >> app/build.gradle
           echo "    namespace 'com.leozito.hyperboostff'" >> app/build.gradle
-          echo "    compileSdk 33" >> app/build.gradle
+          echo "    compileSdk 34" >> app/build.gradle
           echo "    signingConfigs {" >> app/build.gradle
           echo "        release {" >> app/build.gradle
           echo "            storeFile file('release.keystore')" >> app/build.gradle
@@ -59,7 +59,7 @@ jobs:
           echo "    defaultConfig {" >> app/build.gradle
           echo "        applicationId 'com.leozito.hyperboostff'" >> app/build.gradle
           echo "        minSdk 21" >> app/build.gradle
-          echo "        targetSdk 33" >> app/build.gradle
+          echo "        targetSdk 34" >> app/build.gradle
           echo "        versionCode 1" >> app/build.gradle
           echo "        versionName '1.0'" >> app/build.gradle
           echo "    }" >> app/build.gradle
@@ -76,9 +76,9 @@ jobs:
           echo "    }" >> app/build.gradle
           echo "}" >> app/build.gradle
           echo "dependencies {" >> app/build.gradle
-          echo "    implementation 'androidx.core:core-ktx:1.12.0'" >> app/build.gradle
+          echo "    implementation 'androidx.core:core-ktx:1.13.1'" >> app/build.gradle
           echo "    implementation 'androidx.appcompat:appcompat:1.7.0'" >> app/build.gradle
-          echo "    implementation 'com.google.android.material:material:1.11.0'" >> app/build.gradle
+          echo "    implementation 'com.google.android.material:material:1.12.0'" >> app/build.gradle
           echo "}" >> app/build.gradle
 
       - name: Create AndroidManifest.xml
@@ -99,22 +99,10 @@ jobs:
         run: |
           keytool -genkeypair -v -keystore release.keystore -keyalg RSA -keysize 2048 -validity 10000 -alias releaseKey -storepass 123456 -keypass 123456 -dname "CN=HyperBoostFF,O=Eliel,C=BR"
 
-      - name: Generate Gradle Wrapper (Gradle 9+ safe)
+      - name: Generate Gradle Wrapper
         run: |
-          echo "Generating Gradle Wrapper safely..."
-          rm -rf temp || true
-          mkdir temp
-          cd temp
-          echo "rootProject.name = 'temp-wrapper'" > settings.gradle
-          echo "// Using built-in wrapper task (Gradle 9+)" > build.gradle
           gradle wrapper --gradle-version 8.7 --no-daemon --warning-mode all
-          cd ..
-          mkdir -p gradle/wrapper
-          cp -v temp/gradle/wrapper/* gradle/wrapper/
-          cp -v temp/gradlew .
           chmod +x gradlew
-          rm -rf temp
-          echo "✅ Gradle Wrapper ready."
 
       - name: Verify Gradle Wrapper
         run: java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --version
