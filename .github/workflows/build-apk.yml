@@ -82,7 +82,6 @@ jobs:
         run: |
           echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > temp.gradle
           gradle -b temp.gradle wrapper
-          cp -v gradle/wrapper/* gradle/wrapper/
           chmod +x gradlew
           rm temp.gradle
           echo "✅ Gradle Wrapper regenerado!"
