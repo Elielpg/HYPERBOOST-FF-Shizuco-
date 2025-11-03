@@ -3,27 +3,42 @@ plugins {
 }
 
 android {
-    namespace "com.leozito.hyperboostff"
-    compileSdk 33
-
+    namespace 'com.leozito.hyperboostff'    // <-- importante: define o namespace do app
+    compileSdk 34                           // <-- atualizar para 34 (dependências exigem)
+    
     defaultConfig {
         applicationId "com.leozito.hyperboostff"
         minSdk 21
-        targetSdk 33
+        targetSdk 34                        // <-- atualizar para 34
         versionCode 1
         versionName "1.0"
     }
 
+    signingConfigs {
+        release {
+            storeFile file('release.keystore')
+            storePassword '123456'
+            keyAlias 'releaseKey'
+            keyPassword '123456'
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.google.android.material:material:1.12.0'
 }
