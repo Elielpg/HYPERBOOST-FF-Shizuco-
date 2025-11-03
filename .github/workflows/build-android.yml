@@ -1,4 +1,4 @@
-name: Build Android APK (Signed - Final Stable)
+name: Build Android APK (Signed - Stable Fix)
 
 on:
   workflow_dispatch:
@@ -25,16 +25,14 @@ jobs:
           unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk
           sudo mv android-sdk /usr/local/android-sdk
           yes | /usr/local/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/local/android-sdk "platforms;android-33" "build-tools;33.0.2" "platform-tools"
-          export ANDROID_HOME=/usr/local/android-sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/bin:$ANDROID_HOME/platform-tools
 
-      - name: Create project structure
+      - name: Prepare project folders
         run: |
           mkdir -p app/src/main/java
           mkdir -p app/src/main/res
           mkdir -p gradle/wrapper
 
-      - name: Create Gradle files
+      - name: Create root build.gradle and settings.gradle
         run: |
           echo "buildscript {" > build.gradle
           echo "    repositories { google(); mavenCentral() }" >> build.gradle
@@ -46,6 +44,7 @@ jobs:
 
       - name: Create app/build.gradle
         run: |
+          mkdir -p app
           echo "plugins { id 'com.android.application' }" > app/build.gradle
           echo "android {" >> app/build.gradle
           echo "    namespace 'com.leozito.hyperboostff'" >> app/build.gradle
@@ -101,20 +100,27 @@ jobs:
         run: |
           keytool -genkeypair -v -keystore release.keystore -keyalg RSA -keysize 2048 -validity 10000 -alias releaseKey -storepass 123456 -keypass 123456 -dname "CN=HyperBoostFF,O=Eliel,C=BR"
 
-      - name: Generate Gradle Wrapper (safe mode)
+      - name: Generate Gradle Wrapper (safe)
         run: |
-          echo "Creating temporary Gradle project..."
+          echo "Creating temporary Gradle project (with settings.gradle)..."
+          rm -rf temp || true
           mkdir temp
           cd temp
+          # minimal settings and build so 'gradle wrapper' works
+          echo "rootProject.name = 'temp-wrapper-project'" > settings.gradle
           echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
-          gradle wrapper
+          # generate wrapper
+          gradle wrapper --no-daemon --warning-mode all
           cd ..
           mkdir -p gradle/wrapper
-          cp temp/gradle/wrapper/* gradle/wrapper/
-          cp temp/gradlew .
+          cp -v temp/gradle/wrapper/* gradle/wrapper/
+          cp -v temp/gradlew .
           chmod +x gradlew
           rm -rf temp
-          echo "✅ Gradle Wrapper generated successfully!"
+          echo "✅ Gradle Wrapper generated and copied."
+
+      - name: Verify Gradle Wrapper
+        run: java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --version
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace
