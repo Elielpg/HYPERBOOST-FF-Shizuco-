@@ -1,81 +1,155 @@
-name: 🧠 Auto-Fix Gradle Wrapper
+name: Fix Gradle Wrapper and Build APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - principal
+      - 'principal' # se você usar esse nome de branch
 
 permissions:
   contents: write
 
 jobs:
-  fix-wrapper:
+  fix-and-build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Checkout do repositório
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: ☕ Configurar Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: 🧩 Verificar e corrigir Gradle Wrapper
+      - name: Ensure Gradle CLI available (optional)
         run: |
-          echo "🔎 Verificando arquivos do Gradle Wrapper..."
+          if ! command -v gradle >/dev/null 2>&1; then
+            echo "Gradle CLI não encontrado — usando wrapper quando possível."
+          else
+            echo "Gradle CLI disponível: $(gradle -v | sed -n '1,2p')"
+          fi
 
+      - name: Verify / create gradle wrapper files (safe, non-destructive)
+        run: |
+          set -euo pipefail
+          echo "== Verificando gradle wrapper =="
           mkdir -p gradle/wrapper
 
           # gradle-wrapper.properties
           if [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
-            echo "🧱 Criando gradle-wrapper.properties..."
-            cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
+            echo "Criando gradle/wrapper/gradle-wrapper.properties"
+            cat > gradle/wrapper/gradle-wrapper.properties <<'PROPS'
 distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
 distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
 zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
-EOF
+PROPS
           else
-            echo "✅ gradle-wrapper.properties já existe — ignorado."
+            echo "gradle-wrapper.properties já existe -> ignorando"
           fi
 
-          # gradle-wrapper.jar
+          # If gradle-wrapper.jar missing, generate using a temporary Gradle project
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "📦 Gerando gradle-wrapper.jar..."
-            mkdir temp && cd temp
-            echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
-            gradle wrapper
-            cp gradle/wrapper/gradle-wrapper.jar ../gradle/wrapper/
-            cd ..
-            rm -rf temp
+            echo "gradle-wrapper.jar não encontrado — gerando com 'gradle wrapper' em temp..."
+            mkdir -p .github/temp-wrapper
+            cat > .github/temp-wrapper/build.gradle <<'GRAD'
+task wrapper(type: Wrapper) {
+    gradleVersion = '8.7'
+}
+GRAD
+            pushd .github/temp-wrapper >/dev/null
+            if command -v gradle >/dev/null 2>&1; then
+              gradle wrapper --no-daemon
+            else
+              # tenta usar /usr/share/gradle se existir, caso contrário falhará com mensagem útil
+              echo "Gradle CLI não disponível; tentando usar gradle presente no runner (se houver)."
+              gradle wrapper --no-daemon || true
+            fi
+            # copia se gerado
+            if [ -f gradle/wrapper/gradle-wrapper.jar ]; then
+              echo "gradle-wrapper.jar já existia no repo? copiando não é necessário."
+            fi
+            if [ -f wrapper/gradle-wrapper.jar ]; then
+              cp wrapper/gradle-wrapper.jar ../../gradle/wrapper/ || true
+            fi
+            popd >/dev/null || true
+            rm -rf .github/temp-wrapper || true
+            if [ -f gradle/wrapper/gradle-wrapper.jar ]; then
+              echo "gradle-wrapper.jar gerado com sucesso."
+            else
+              echo "Aviso: não foi possível gerar gradle-wrapper.jar automaticamente. A build pode falhar."
+            fi
           else
-            echo "✅ gradle-wrapper.jar já existe — ignorado."
+            echo "gradle-wrapper.jar já existe -> ignorando"
           fi
 
           # gradlew script
           if [ ! -f gradlew ]; then
-            echo "📝 Criando gradlew..."
-            gradle wrapper
+            echo "Criando script gradlew chamando 'gradle wrapper' (se gradle disponível)"
+            if command -v gradle >/dev/null 2>&1; then
+              gradle wrapper --no-daemon || true
+            else
+              # cria um gradlew mínimo que chama 'gradle' (fallback)
+              cat > gradlew <<'SH'
+#!/usr/bin/env sh
+# minimal gradlew fallback (tenta usar gradle instalado)
+if command -v gradle >/dev/null 2>&1; then
+  exec gradle "$@"
+else
+  echo "Gradle não encontrado no runner. Por favor gere o gradle-wrapper.jar localmente."
+  exit 1
+fi
+SH
+              chmod +x gradlew
+            fi
           else
-            echo "✅ gradlew já existe — ignorado."
+            echo "gradlew já existe -> ignorando"
           fi
 
-          # gradlew.bat script
+          # gradlew.bat (Windows) - só cria se ausente
           if [ ! -f gradlew.bat ]; then
-            echo "📝 Criando gradlew.bat..."
-            gradle wrapper
-          else
-            echo "✅ gradlew.bat já existe — ignorado."
+            cat > gradlew.bat <<'BAT'
+@echo off
+REM Minimal gradlew.bat fallback: tenta usar gradle no PATH
+where gradle >nul 2>nul || (
+  echo Gradle nao encontrado no PATH.
+  exit /b 1
+)
+gradle %*
+BAT
           fi
 
-          chmod +x gradlew
-          echo "✅ Todos os arquivos do Gradle Wrapper foram verificados e corrigidos com sucesso!"
+          chmod +x gradlew || true
+          echo "== Verificação do Gradle Wrapper concluída =="
 
-      - name: 💾 Commit e push do wrapper atualizado
+      - name: Commit gradle wrapper changes (if any)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add gradle gradlew gradlew.bat || true
-          git commit -m "🤖 Auto-fix Gradle Wrapper" || echo "Nenhuma alteração detectada"
-          git push || echo "Nenhum push necessário"
+          if git diff --quiet --staged; then
+            echo "Nenhuma mudança para commitar."
+          else
+            git commit -m "chore: auto-fix gradle wrapper by workflow" || true
+            git push || echo "Push falhou — talvez sem permissões."
+          fi
+
+      - name: Run assembleRelease (attempt to build APK)
+        run: |
+          set -euo pipefail
+          if [ -f ./gradlew ]; then
+            echo "Usando ./gradlew para construir..."
+            ./gradlew assembleRelease --stacktrace
+          elif command -v gradle >/dev/null 2>&1; then
+            echo "Usando gradle CLI para construir..."
+            gradle assembleRelease --stacktrace
+          else
+            echo "Nenhum gradle wrapper ou gradle CLI disponível — não foi possível iniciar a build."
+            exit 1
+          fi
