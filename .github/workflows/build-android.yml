@@ -1,35 +1,84 @@
-name: 🏗️ Build Android APK
+name: Build Android APK
 
 on:
+  push:
+    branches: [ "principal", "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: 📥 Checkout do código
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: ☕ Configurar JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
 
-      - name: 🧩 Garantir Gradle Wrapper
-        run: |
-          if [ ! -f gradlew ]; then
-            echo "Wrapper ausente — criando..."
-            gradle wrapper
-          fi
-          chmod +x gradlew
+    - name: Ensure Gradle wrapper exists (generate if missing)
+      id: ensure-wrapper
+      run: |
+        set -e
+        if [ -f "./gradlew" ]; then
+          echo "Gradle wrapper found."
+          chmod +x ./gradlew
+        else
+          echo "Gradle wrapper not found. Installing system gradle and generating wrapper..."
+          sudo apt-get update -y
+          sudo apt-get install -y gradle
+          gradle wrapper --gradle-version 9.2
+          chmod +x ./gradlew
+          echo "Generated gradle wrapper."
+        fi
 
-      - name: 🏗️ Construir APK
-        run: ./gradlew assembleRelease --stacktrace
+    - name: Check compileSdk in app/build.gradle
+      run: |
+        if ! grep -q "compileSdk 34" app/build.gradle; then
+          echo "Warning: compileSdk != 34. The build can fail with AndroidX 1.7.0. Continuing..."
+        else
+          echo "compileSdk is 34."
+        fi
 
-      - name: 📦 Enviar APK como artefato
-        uses: actions/upload-artifact@v4
-        with:
-          name: HyperBoostFF-APK
-          path: app/build/outputs/apk/release/app-release.apk
+    - name: Validate Manifest (android:exported & package)
+      run: |
+        if grep -q 'package=' app/src/main/AndroidManifest.xml; then
+          echo "::warning file=app/src/main/AndroidManifest.xml::Remove the package attribute from AndroidManifest (use namespace in build.gradle)."
+        fi
+        if ! grep -q 'android:exported=' app/src/main/AndroidManifest.xml; then
+          echo "::warning file=app/src/main/AndroidManifest.xml::Missing android:exported on activities with intent-filter. Add android:exported=\"true\" or \"false\"."
+        fi
+
+    - name: Verify logo.png integrity
+      run: |
+        if [ -f "app/src/main/res/drawable/logo.png" ] || [ -f "app/src/main/res/mipmap-hdpi/logo.png" ]; then
+          echo "Logo file exists — trying to identify"
+          file app/src/main/res/drawable/logo.png || true
+        else
+          echo "::warning::logo.png not found in res/drawable or res/mipmap-hdpi. This may cause AAPT errors."
+        fi
+
+    - name: Grant execute to gradlew
+      run: chmod +x ./gradlew || true
+
+    - name: Assemble Release (gradle)
+      run: |
+        set -e
+        ./gradlew assembleRelease --no-daemon --stacktrace
+      env:
+        JAVA_HOME: ${{ env.JAVA_HOME }}
+
+    - name: Upload built APK (if exists)
+      if: success() && (exists('app/build/outputs/apk/release/app-release.apk') || exists('app/build/outputs/apk/release/app-release-unsigned.apk'))
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-apk
+        path: |
+          app/build/outputs/apk/release/app-release.apk
+          app/build/outputs/apk/release/app-release-unsigned.apk
