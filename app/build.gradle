@@ -3,19 +3,21 @@ plugins {
 }
 
 android {
-    namespace 'com.leozito.hyperboostff'
-    compileSdk 34
+    namespace 'com.leozito.hyperboostff'    // namespace fixado aqui (não deixe package no Manifest)
+    compileSdk 34                           // <-- importante: 34
 
     defaultConfig {
         applicationId "com.leozito.hyperboostff"
         minSdk 21
-        targetSdk 34
+        targetSdk 34                        // <-- importante: 34
         versionCode 1
         versionName "1.0"
     }
 
     signingConfigs {
         release {
+            // se você não tiver o keystore no repo, remova/ajuste estas linhas
+            // ou coloque as credenciais em secrets e gere no fluxo.
             storeFile file('release.keystore')
             storePassword '123456'
             keyAlias 'releaseKey'
@@ -25,13 +27,12 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // só usa signingConfig se o arquivo de keystore existir
+            if (file('release.keystore').exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
-            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-        debug {
-            minifyEnabled false
         }
     }
 
@@ -40,8 +41,9 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    buildFeatures {
-        viewBinding true
+    // opcional: ajude o aapt a falhar com mensagens claras
+    aaptOptions {
+        cruncherEnabled = false
     }
 }
 
