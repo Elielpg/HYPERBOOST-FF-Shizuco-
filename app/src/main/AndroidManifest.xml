@@ -7,7 +7,7 @@
         android:icon="@mipmap/logo">
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.leozito.hyperboostff.MainActivity"
             android:exported="true">
 
             <intent-filter>
@@ -16,7 +16,5 @@
             </intent-filter>
 
         </activity>
-
     </application>
-
 </manifest>
