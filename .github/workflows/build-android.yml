@@ -17,17 +17,23 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install Gradle CLI
+      - name: Set up Android SDK 33
         run: |
           sudo apt-get update
-          sudo apt-get install -y gradle
+          sudo apt-get install -y wget unzip
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk
+          sudo mv android-sdk /usr/local/android-sdk
+          yes | /usr/local/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/local/android-sdk "platforms;android-33" "build-tools;33.0.2" "platform-tools"
+          export ANDROID_HOME=/usr/local/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/bin:$ANDROID_HOME/platform-tools
+          echo "✅ Android SDK 33 instalado"
 
       - name: Prepare project structure
         run: |
           mkdir -p app/src/main/java
           mkdir -p app/src/main/res
           mkdir -p gradle/wrapper
-          echo "✅ Estrutura básica criada"
 
       - name: Create root build.gradle
         run: |
@@ -113,9 +119,6 @@ jobs:
           chmod +x gradlew
           rm temp.gradle
           echo "✅ Gradle Wrapper regenerado!"
-
-      - name: Verify Gradle Wrapper
-        run: java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain --version
 
       - name: Build Release APK and AAB
         run: |
