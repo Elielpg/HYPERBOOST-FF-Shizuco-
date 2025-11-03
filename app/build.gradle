@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace 'com.leozito.hyperboostff'    // <-- importante: define o namespace do app
-    compileSdk 34                           // <-- atualizar para 34 (dependências exigem)
-    
+    namespace 'com.leozito.hyperboostff'
+    compileSdk 34
+
     defaultConfig {
         applicationId "com.leozito.hyperboostff"
         minSdk 21
-        targetSdk 34                        // <-- atualizar para 34
+        targetSdk 34
         versionCode 1
         versionName "1.0"
     }
@@ -27,13 +27,21 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
         }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        viewBinding true
     }
 }
 
