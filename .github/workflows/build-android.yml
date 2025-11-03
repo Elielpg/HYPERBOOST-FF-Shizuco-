@@ -1,4 +1,4 @@
-name: Build Android APK (Signed)
+name: Build Android APK (Signed - Final Stable)
 
 on:
   workflow_dispatch:
@@ -28,22 +28,19 @@ jobs:
           export ANDROID_HOME=/usr/local/android-sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/bin:$ANDROID_HOME/platform-tools
 
-      - name: Prepare Project
+      - name: Create project structure
         run: |
           mkdir -p app/src/main/java
           mkdir -p app/src/main/res
           mkdir -p gradle/wrapper
 
-      - name: Create Root build.gradle
+      - name: Create Gradle files
         run: |
           echo "buildscript {" > build.gradle
-          echo "  repositories { google(); mavenCentral() }" >> build.gradle
-          echo "  dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }" >> build.gradle
+          echo "    repositories { google(); mavenCentral() }" >> build.gradle
+          echo "    dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }" >> build.gradle
           echo "}" >> build.gradle
           echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
-
-      - name: Create settings.gradle
-        run: |
           echo "rootProject.name = 'HYPERBOOST-FF-Shizuco'" > settings.gradle
           echo "include ':app'" >> settings.gradle
 
@@ -53,7 +50,6 @@ jobs:
           echo "android {" >> app/build.gradle
           echo "    namespace 'com.leozito.hyperboostff'" >> app/build.gradle
           echo "    compileSdk 33" >> app/build.gradle
-          echo "" >> app/build.gradle
           echo "    signingConfigs {" >> app/build.gradle
           echo "        release {" >> app/build.gradle
           echo "            storeFile file('release.keystore')" >> app/build.gradle
@@ -62,7 +58,6 @@ jobs:
           echo "            keyPassword '123456'" >> app/build.gradle
           echo "        }" >> app/build.gradle
           echo "    }" >> app/build.gradle
-          echo "" >> app/build.gradle
           echo "    defaultConfig {" >> app/build.gradle
           echo "        applicationId 'com.leozito.hyperboostff'" >> app/build.gradle
           echo "        minSdk 21" >> app/build.gradle
@@ -70,7 +65,6 @@ jobs:
           echo "        versionCode 1" >> app/build.gradle
           echo "        versionName '1.0'" >> app/build.gradle
           echo "    }" >> app/build.gradle
-          echo "" >> app/build.gradle
           echo "    buildTypes {" >> app/build.gradle
           echo "        release {" >> app/build.gradle
           echo "            signingConfig signingConfigs.release" >> app/build.gradle
@@ -78,8 +72,11 @@ jobs:
           echo "            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'" >> app/build.gradle
           echo "        }" >> app/build.gradle
           echo "    }" >> app/build.gradle
+          echo "    compileOptions {" >> app/build.gradle
+          echo "        sourceCompatibility JavaVersion.VERSION_17" >> app/build.gradle
+          echo "        targetCompatibility JavaVersion.VERSION_17" >> app/build.gradle
+          echo "    }" >> app/build.gradle
           echo "}" >> app/build.gradle
-          echo "" >> app/build.gradle
           echo "dependencies {" >> app/build.gradle
           echo "    implementation 'androidx.core:core-ktx:1.12.0'" >> app/build.gradle
           echo "    implementation 'androidx.appcompat:appcompat:1.7.0'" >> app/build.gradle
@@ -104,19 +101,25 @@ jobs:
         run: |
           keytool -genkeypair -v -keystore release.keystore -keyalg RSA -keysize 2048 -validity 10000 -alias releaseKey -storepass 123456 -keypass 123456 -dname "CN=HyperBoostFF,O=Eliel,C=BR"
 
-      - name: Generate Gradle Wrapper
+      - name: Generate Gradle Wrapper (safe mode)
         run: |
-          echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > temp.gradle
-          gradle -b temp.gradle wrapper
+          echo "Creating temporary Gradle project..."
+          mkdir temp
+          cd temp
+          echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
+          gradle wrapper
+          cd ..
+          mkdir -p gradle/wrapper
+          cp temp/gradle/wrapper/* gradle/wrapper/
+          cp temp/gradlew .
           chmod +x gradlew
-          rm temp.gradle
-          echo "✅ Gradle Wrapper gerado corretamente!"
+          rm -rf temp
+          echo "✅ Gradle Wrapper generated successfully!"
 
-      - name: Build APK
-        run: |
-          ./gradlew assembleRelease
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: HyperBoostFF-APK
