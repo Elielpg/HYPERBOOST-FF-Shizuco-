@@ -1,4 +1,4 @@
-name: 🧩 Recriar Gradle Wrapper
+name: 🧠 Auto-Fix Gradle Wrapper
 
 on:
   workflow_dispatch:
@@ -7,48 +7,75 @@ permissions:
   contents: write
 
 jobs:
-  recreate-wrapper:
+  fix-wrapper:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout do código
+      - name: 📥 Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: ☕ Instalar JDK 17
+      - name: ☕ Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: ⚙️ Recriar Gradle Wrapper
+      - name: 🧩 Verificar e corrigir Gradle Wrapper
         run: |
-          echo "🧩 Limpando wrapper antigo..."
-          rm -rf gradle gradlew gradlew.bat
+          echo "🔎 Verificando arquivos do Gradle Wrapper..."
+
           mkdir -p gradle/wrapper
 
-          echo "🧩 Criando gradle-wrapper.properties..."
-          cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
+          # gradle-wrapper.properties
+          if [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
+            echo "🧱 Criando gradle-wrapper.properties..."
+            cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
 distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
 distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
 zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 EOF
+          else
+            echo "✅ gradle-wrapper.properties já existe — ignorado."
+          fi
 
-          echo "📦 Gerando gradle-wrapper.jar..."
-          mkdir temp && cd temp
-          echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
-          gradle wrapper
-          cp gradle/wrapper/gradle-wrapper.jar ../gradle/wrapper/
-          cd ..
-          rm -rf temp
+          # gradle-wrapper.jar
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "📦 Gerando gradle-wrapper.jar..."
+            mkdir temp && cd temp
+            echo "task wrapper(type: Wrapper) { gradleVersion = '8.7' }" > build.gradle
+            gradle wrapper
+            cp gradle/wrapper/gradle-wrapper.jar ../gradle/wrapper/
+            cd ..
+            rm -rf temp
+          else
+            echo "✅ gradle-wrapper.jar já existe — ignorado."
+          fi
 
-          echo "✅ Gradle Wrapper criado com sucesso!"
+          # gradlew script
+          if [ ! -f gradlew ]; then
+            echo "📝 Criando gradlew..."
+            gradle wrapper
+          else
+            echo "✅ gradlew já existe — ignorado."
+          fi
 
-      - name: 💾 Commit e push das alterações
+          # gradlew.bat script
+          if [ ! -f gradlew.bat ]; then
+            echo "📝 Criando gradlew.bat..."
+            gradle wrapper
+          else
+            echo "✅ gradlew.bat já existe — ignorado."
+          fi
+
+          chmod +x gradlew
+          echo "✅ Todos os arquivos do Gradle Wrapper foram verificados e corrigidos com sucesso!"
+
+      - name: 💾 Commit e push do wrapper atualizado
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gradle gradlew gradlew.bat
-          git commit -m "🔧 Recriado Gradle Wrapper automaticamente" || echo "Nada para commitar"
-          git push
+          git add gradle gradlew gradlew.bat || true
+          git commit -m "🤖 Auto-fix Gradle Wrapper" || echo "Nenhuma alteração detectada"
+          git push || echo "Nenhum push necessário"
